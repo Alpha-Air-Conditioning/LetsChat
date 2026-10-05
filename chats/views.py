@@ -27,16 +27,9 @@ def home(request):
 
     conversations = list(
         request.user.conversations
-        .annotate(total_messages=Count('messages'))
         .prefetch_related('participants__profile', 'messages__sender__profile')
         .all()
     )
-
-    # Attach the other participant and dynamic display name to each conversation
-    for conv in conversations:
-        other = [p for p in conv.participants.all() if p.id != request.user.id]
-        conv.other_participant = other[0] if other else None
-        conv.display_name = conv.other_participant.username if conv.other_participant else conv.name
 
     conversation_id = request.GET.get('conversation')
     active_conversation = None
@@ -53,8 +46,14 @@ def home(request):
             None
         )
         if active_conversation:
-            active_other_participant = active_conversation.other_participant
-            active_display_name = active_conversation.display_name
+            # Mark all incoming unread messages as read upon opening chat
+            active_conversation.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
+
+            active_other_participant = next(
+                (p for p in active_conversation.participants.all() if p.id != request.user.id),
+                None
+            )
+            active_display_name = active_other_participant.username if active_other_participant else active_conversation.name
             if active_other_participant:
                 is_blocked_by_me = BlockedUser.objects.filter(
                     blocker=request.user,
@@ -71,6 +70,22 @@ def home(request):
                 .select_related('sender__profile')
                 .all()
             )
+
+    # Attach dynamic display name and unread badge (1..9 or 9+) to each conversation
+    for conv in conversations:
+        other = [p for p in conv.participants.all() if p.id != request.user.id]
+        conv.other_participant = other[0] if other else None
+        conv.display_name = conv.other_participant.username if conv.other_participant else conv.name
+
+        # Calculate unread messages sent by the other participant
+        unread_count = conv.messages.filter(is_read=False).exclude(sender=request.user).count()
+        conv.unread_count = unread_count
+        if unread_count > 9:
+            conv.unread_badge = '9+'
+        elif unread_count > 0:
+            conv.unread_badge = str(unread_count)
+        else:
+            conv.unread_badge = None
 
     return render(
         request,
@@ -92,7 +107,7 @@ def home(request):
 
 @login_required
 def start_chat(request):
-    """Start or open a chat ONLY by 6-digit Unique ID."""
+    """Start or open a chat ONLY by full 6-digit Unique ID."""
     if request.method == 'POST':
         other_user_id = request.POST.get('user_id')
         query = request.POST.get('query', '').strip()
@@ -103,13 +118,14 @@ def start_chat(request):
             other_user = get_object_or_404(User, id=other_user_id)
         elif query:
             clean_query = query.lstrip('#').strip()
-            # Identify exclusively by 6-digit Unique ID
-            other_user = (
-                User.objects
-                .filter(profile__unique_number=clean_query)
-                .exclude(id=request.user.id)
-                .first()
-            )
+            # Identify exclusively by full 6-digit Unique ID
+            if clean_query.isdigit() and len(clean_query) == 6:
+                other_user = (
+                    User.objects
+                    .filter(profile__unique_number=clean_query)
+                    .exclude(id=request.user.id)
+                    .first()
+                )
 
         if other_user:
             # Check if 1-on-1 conversation already exists
@@ -133,7 +149,7 @@ def start_chat(request):
             if query:
                 django_messages.error(
                     request,
-                    f'No member found with Unique ID "#{query.lstrip("#")}". Please enter a valid 6-digit ID.'
+                    f'No member found with Unique ID "#{query.lstrip("#")}". Please enter the complete 6-digit ID.'
                 )
 
     return redirect('home')
@@ -141,21 +157,32 @@ def start_chat(request):
 
 @login_required
 def search_users(request):
-    """Live search endpoint: Allows finding users by username, Unique ID, or email."""
+    """Live search endpoint: Allows finding users strictly by exact complete 6-digit Unique ID."""
     q = request.GET.get('q', '').strip().lstrip('#').lstrip('@')
     if not q:
         return JsonResponse({'users': []})
 
-    users = (
-        User.objects
-        .exclude(id=request.user.id)
-        .select_related('profile')
-        .filter(
-            Q(username__icontains=q) |
-            Q(profile__unique_number__icontains=q) |
-            Q(email__icontains=q)
-        )[:15]
-    )
+    # If numeric, require complete 6 digits (do not reveal users on partial typing)
+    if q.isdigit():
+        if len(q) != 6:
+            return JsonResponse({'users': []})
+        users = (
+            User.objects
+            .exclude(id=request.user.id)
+            .select_related('profile')
+            .filter(profile__unique_number=q)
+        )
+    else:
+        # Non-numeric search: exact match only
+        users = (
+            User.objects
+            .exclude(id=request.user.id)
+            .select_related('profile')
+            .filter(
+                Q(username__iexact=q) |
+                Q(email__iexact=q)
+            )
+        )
 
     data = [
         {
@@ -168,6 +195,7 @@ def search_users(request):
         for u in users
     ]
     return JsonResponse({'users': data})
+
 
 
 

@@ -154,6 +154,10 @@ class Message(models.Model):
         default=False
     )
 
+    is_read = models.BooleanField(
+        default=False
+    )
+
 
     class Meta:
 

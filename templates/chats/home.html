@@ -155,9 +155,9 @@
                                 {{ conversation.display_name }}
                             </h4>
                             <div class="flex items-center gap-1.5 shrink-0">
-                                {% if conversation.total_messages > 0 %}
-                                    <span class="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20" title="{{ conversation.total_messages }} messages">
-                                        {{ conversation.total_messages }}
+                                {% if conversation.unread_badge %}
+                                    <span class="min-w-[19px] h-[19px] px-1 text-[10px] font-bold font-mono rounded-full bg-blue-600 text-white flex items-center justify-center shadow-md animate-pulse" title="{{ conversation.unread_count }} unread messages">
+                                        {{ conversation.unread_badge }}
                                     </span>
                                 {% endif %}
                                 {% with last_msg=conversation.messages.last %}
@@ -760,10 +760,22 @@
                 if (!q) {
                     userSearchResults.innerHTML = `
                         <div class="py-6 text-center text-xs text-zinc-500">
-                            Search for friends by Username, Name, or 6-digit Unique ID.
+                            Enter friend's complete 6-digit Unique ID.
                         </div>
                     `;
                     return;
+                }
+
+                // If user is entering digits, only search when all 6 digits are typed
+                if (/^\d+$/.test(q)) {
+                    if (q.length < 6) {
+                        userSearchResults.innerHTML = `
+                            <div class="py-6 text-center text-xs text-zinc-400">
+                                <span class="font-mono text-blue-400 font-semibold">${q.length}/6</span> digits entered. Complete the 6-digit ID to find member.
+                            </div>
+                        `;
+                        return;
+                    }
                 }
 
                 fetch(`/search-users/?q=${encodeURIComponent(q)}`)
@@ -772,7 +784,7 @@
                         if (!data.users || data.users.length === 0) {
                             userSearchResults.innerHTML = `
                                 <div class="py-6 text-center text-xs text-zinc-500">
-                                    No member found matching "${q}".
+                                    No member found with Unique ID #${q}.
                                 </div>
                             `;
                             return;
