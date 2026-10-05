@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/6.1/ref/settings/
 
 import os
 from pathlib import Path
+import dj_database_url
 import environ
 
 # Build paths inside the project like this.
@@ -25,9 +26,9 @@ environ.Env.read_env(BASE_DIR / '.env')
 # SECURITY
 # ============================================================
 
-SECRET_KEY = 'django-insecure-g^7sorlrm5ygw&^04b+^*g8z%-7d$4_wh0m6j*a=v1x%h!4--9'
+SECRET_KEY = env('SECRET_KEY', default='django-insecure-g^7sorlrm5ygw&^04b+^*g8z%-7d$4_wh0m6j*a=v1x%h!4--9')
 
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=True)
 
 ALLOWED_HOSTS = ['*']
 
@@ -38,6 +39,7 @@ CSRF_TRUSTED_ORIGINS = [
     'https://127.0.0.1:8443',
     'https://localhost:8443',
     'https://192.168.29.41:8443',
+    'https://*.onrender.com',
     'https://*.trycloudflare.com',
     'https://*.cloudflarepreview.com',
     'https://*.loca.lt',
@@ -85,6 +87,7 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
 
     'django.contrib.sessions.middleware.SessionMiddleware',
 
@@ -150,12 +153,22 @@ ASGI_APPLICATION = 'config.asgi.application'
 # DATABASE
 # ============================================================
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+DATABASE_URL = os.environ.get('DATABASE_URL')
+if DATABASE_URL:
+    DATABASES = {
+        'default': dj_database_url.config(
+            default=DATABASE_URL,
+            conn_max_age=600,
+            conn_health_checks=True,
+        )
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # ============================================================
@@ -213,6 +226,7 @@ STATICFILES_DIRS = [
 ]
 
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 
 # ============================================================
@@ -226,11 +240,22 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # DJANGO CHANNELS
 # ============================================================
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer',
-    },
-}
+REDIS_URL = os.environ.get('REDIS_URL')
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [REDIS_URL],
+            },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 
 # ============================================================
