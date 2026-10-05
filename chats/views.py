@@ -13,6 +13,7 @@ from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.csrf import csrf_exempt
 import requests
 
 from .models import BlockedUser, Conversation, Message, Profile
@@ -449,6 +450,7 @@ def google_callback(request):
     return redirect(next_url or 'home')
 
 
+@csrf_exempt
 @login_required
 def upload_voice_message(request, conversation_id):
     """Uploads a recorded voice note and broadcasts it via WebSocket."""

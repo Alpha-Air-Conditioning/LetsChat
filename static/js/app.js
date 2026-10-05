@@ -637,6 +637,7 @@ function getSupportedAudioMimeType() {
 // Voice Recording System (MediaRecorder)
 // ----------------------------------------------------
 let mediaRecorder = null;
+let activeAudioStream = null;
 let audioChunks = [];
 let recordingTimerInterval = null;
 let recordingSeconds = 0;
@@ -652,16 +653,16 @@ function toggleVoiceRecording() {
 
 async function startVoiceRecording() {
     try {
-        const stream = await getCrossBrowserUserMedia({ audio: true });
+        activeAudioStream = await getCrossBrowserUserMedia({ audio: true });
         audioChunks = [];
         activeRecordingMimeType = getSupportedAudioMimeType();
 
         const recorderOptions = activeRecordingMimeType ? { mimeType: activeRecordingMimeType } : {};
         try {
-            mediaRecorder = new MediaRecorder(stream, recorderOptions);
+            mediaRecorder = new MediaRecorder(activeAudioStream, recorderOptions);
         } catch (e) {
             console.warn('Fallback to default MediaRecorder without options:', e);
-            mediaRecorder = new MediaRecorder(stream);
+            mediaRecorder = new MediaRecorder(activeAudioStream);
             activeRecordingMimeType = mediaRecorder.mimeType || '';
         }
 
@@ -671,12 +672,8 @@ async function startVoiceRecording() {
             }
         };
 
-        mediaRecorder.onstop = function () {
-            stream.getTracks().forEach(track => track.stop());
-        };
-
-        // Collect chunks in smaller slices (e.g. every 250ms) so mobile buffers don't drop
-        mediaRecorder.start(250);
+        // Collect chunks in smaller slices (e.g. every 200ms)
+        mediaRecorder.start(200);
 
         const textContainer = document.getElementById('textInputContainer');
         const voiceContainer = document.getElementById('voiceRecordingContainer');
@@ -706,20 +703,41 @@ async function startVoiceRecording() {
 }
 
 function cancelVoiceRecording() {
-    if (mediaRecorder && mediaRecorder.state === 'recording') {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
         mediaRecorder.ondataavailable = null;
-        mediaRecorder.stop();
+        mediaRecorder.onstop = null;
+        try { mediaRecorder.stop(); } catch (e) {}
+    }
+    if (activeAudioStream) {
+        activeAudioStream.getTracks().forEach(track => track.stop());
+        activeAudioStream = null;
     }
     resetRecordingUI();
 }
 
 function stopAndSendVoiceRecording() {
-    if (!mediaRecorder || mediaRecorder.state !== 'recording') return;
+    if (!mediaRecorder || mediaRecorder.state === 'inactive') return;
+
+    // Flush any pending data from the recorder
+    try {
+        if (mediaRecorder.state === 'recording') {
+            mediaRecorder.requestData();
+        }
+    } catch (e) {
+        console.warn('MediaRecorder requestData:', e);
+    }
 
     mediaRecorder.onstop = function () {
-        const mime = activeRecordingMimeType || (mediaRecorder && mediaRecorder.mimeType) || 'audio/mp4';
+        if (activeAudioStream) {
+            activeAudioStream.getTracks().forEach(track => track.stop());
+            activeAudioStream = null;
+        }
+
+        const mime = activeRecordingMimeType || (mediaRecorder && mediaRecorder.mimeType) || 'audio/webm';
         const audioBlob = new Blob(audioChunks, { type: mime });
-        if (audioBlob.size < 100) {
+
+        if (!audioBlob || audioBlob.size === 0) {
+            console.warn('Recorded audio is empty.');
             resetRecordingUI();
             return;
         }
@@ -733,17 +751,19 @@ function stopAndSendVoiceRecording() {
         const formData = new FormData();
         formData.append('audio', audioBlob, `voice_${Date.now()}.${ext}`);
 
+        const csrfToken = window.CHAT_CONFIG?.csrfToken || getCookie('csrftoken') || '';
+
         fetch(`/upload-voice/${conversationId}/`, {
             method: 'POST',
             headers: {
-                'X-CSRFToken': getCookie('csrftoken') || ''
+                'X-CSRFToken': csrfToken
             },
             body: formData
         })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) {
-                alert(data.error);
+        .then(async (res) => {
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.error) {
+                alert(data.error || 'Failed to upload voice note.');
             }
         })
         .catch(err => {
@@ -754,7 +774,12 @@ function stopAndSendVoiceRecording() {
         resetRecordingUI();
     };
 
-    mediaRecorder.stop();
+    try {
+        mediaRecorder.stop();
+    } catch (e) {
+        console.error('Error stopping mediaRecorder:', e);
+        resetRecordingUI();
+    }
 }
 
 function resetRecordingUI() {

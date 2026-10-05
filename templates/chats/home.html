@@ -1058,7 +1058,8 @@
     window.CHAT_CONFIG = {
         conversationId: "{{ active_conversation.id|default:'' }}",
         currentUsername: "{{ request.user.username|escapejs }}",
-        currentUserId: "{{ request.user.id }}"
+        currentUserId: "{{ request.user.id }}",
+        csrfToken: "{{ csrf_token }}"
     };
 </script>
 <script src="{% static 'js/app.js' %}"></script>
