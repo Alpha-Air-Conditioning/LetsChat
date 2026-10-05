@@ -52,7 +52,10 @@ CSRF_TRUSTED_ORIGINS = [
     'http://*:8000',
     'https://*:8443',
 ]
-# Allow LAN IP origins for mobile device testing
+# Proxy and HTTPS headers for Railway / Cloudflare / Reverse Proxies
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
 CSRF_COOKIE_SECURE = False
 SESSION_COOKIE_SECURE = False
 
