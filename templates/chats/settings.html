@@ -1,0 +1,277 @@
+{% extends 'base.html' %}
+
+{% block title %}Settings — LetsChat{% endblock %}
+
+{% block content %}
+<div class="min-h-screen p-4 sm:p-6 md:p-8 max-w-2xl mx-auto flex flex-col py-6 md:py-10 pb-28 sm:pb-20">
+    <div class="mb-5 flex items-center justify-between">
+        <a href="{% url 'home' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-zinc-900 border border-zinc-800 text-zinc-300 hover:text-white hover:border-zinc-700 text-xs font-medium transition-colors shadow-sm">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
+            <span>Back to Messages</span>
+        </a>
+
+        <form method="POST" action="{% url 'logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-zinc-900/80 hover:bg-rose-500/10 border border-zinc-800 hover:border-rose-500/20 text-zinc-400 hover:text-rose-400 text-xs font-medium transition-colors">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </form>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="mb-4 p-3.5 rounded-xl text-xs font-medium {% if message.tags == 'error' %}bg-rose-500/10 border border-rose-500/20 text-rose-300{% else %}bg-emerald-500/10 border border-emerald-500/20 text-emerald-300{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="bg-[#121215] rounded-2xl border border-zinc-800 p-5 sm:p-7 md:p-8 shadow-xl space-y-6">
+        <!-- 1. DISPLAY PICTURE (DP) & IDENTITY SECTION -->
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 pb-6 border-b border-zinc-800">
+            <div class="flex items-center gap-4">
+                <!-- Avatar DP Display with instant preview -->
+                <div class="relative group">
+                    <div class="w-16 h-16 rounded-2xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center text-zinc-100 font-semibold text-xl overflow-hidden shrink-0 shadow-md">
+                        {% if user_profile.avatar %}
+                            <img id="avatarPreview" src="{{ user_profile.avatar.url }}" alt="{{ request.user.username }}" class="w-full h-full object-cover">
+                        {% else %}
+                            <img id="avatarPreview" src="" alt="" class="w-full h-full object-cover hidden">
+                            <span id="avatarPlaceholder">{{ request.user.username|first|upper }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div>
+                    <h1 class="text-base font-semibold text-zinc-100">{{ request.user.username }}</h1>
+                    <p class="text-xs text-zinc-400">{{ request.user.email|default:"No email set" }}</p>
+
+                    <!-- Avatar Actions Form -->
+                    <form method="POST" enctype="multipart/form-data" class="mt-2.5 flex items-center gap-2" id="avatarForm">
+                        {% csrf_token %}
+                        <input
+                            type="file"
+                            id="avatarInput"
+                            name="avatar"
+                            accept="image/*"
+                            class="hidden"
+                            onchange="handleAvatarSelected(this)"
+                        >
+
+                        <button
+                            type="button"
+                            onclick="document.getElementById('avatarInput').click()"
+                            class="px-2.5 py-1 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium border border-zinc-700/80 transition-colors flex items-center gap-1.5"
+                        >
+                            <svg class="w-3.5 h-3.5 text-zinc-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <span>Change DP</span>
+                        </button>
+
+                        <button
+                            type="submit"
+                            id="saveAvatarBtn"
+                            class="hidden px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors"
+                        >
+                            Save
+                        </button>
+
+                        {% if user_profile.avatar %}
+                            <button
+                                type="submit"
+                                name="remove_avatar"
+                                value="1"
+                                onclick="return confirm('Remove your profile picture?')"
+                                class="px-2 py-1 rounded-lg text-rose-400 hover:bg-rose-500/10 text-xs font-medium transition-colors"
+                                title="Remove current DP"
+                            >
+                                Remove
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+
+            <!-- Unique Number Card -->
+            <div class="flex flex-col sm:items-end gap-1 shrink-0">
+                <span class="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">Your Unique ID</span>
+                <button
+                    type="button"
+                    onclick="copySettingsId('{{ user_profile.unique_number }}')"
+                    id="settingsCopyBtn"
+                    class="px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/30 text-blue-400 hover:bg-blue-500/20 font-mono font-medium text-xs flex items-center gap-1.5 transition-colors"
+                    title="Click to copy your unique ID"
+                >
+                    <span>#{{ user_profile.unique_number }}</span>
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- 2. ACCOUNT INFORMATION & EDIT NAME -->
+        <div class="space-y-4 pb-6 border-b border-zinc-800">
+            <div>
+                <h3 class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Account Details</h3>
+                <p class="text-[11px] text-zinc-500 mt-0.5">Update your display name / username and email address.</p>
+            </div>
+            <form method="POST" class="space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label for="usernameInput" class="block text-xs font-medium text-zinc-300 mb-1.5">
+                            Username / Name
+                        </label>
+                        <div class="relative">
+                            <input
+                                type="text"
+                                id="usernameInput"
+                                name="username"
+                                value="{{ request.user.username }}"
+                                required
+                                minlength="2"
+                                maxlength="150"
+                                placeholder="Your username or display name"
+                                class="w-full pl-8 pr-3.5 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none transition-colors"
+                            >
+                            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-500 text-xs">@</span>
+                        </div>
+                    </div>
+                    <div>
+                        <label for="emailInput" class="block text-xs font-medium text-zinc-300 mb-1.5">
+                            Email Address
+                        </label>
+                        <input
+                            type="email"
+                            id="emailInput"
+                            name="email"
+                            value="{{ request.user.email }}"
+                            placeholder="Enter email address..."
+                            class="w-full px-3.5 py-2 text-xs bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none transition-colors"
+                        >
+                    </div>
+                </div>
+                <div class="flex justify-end pt-1">
+                    <button
+                        type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-medium transition-colors shadow-sm flex items-center gap-1.5"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span>Save Changes</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- 3. PREFERENCES -->
+        <div class="space-y-4">
+            <h3 class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Preferences</h3>
+
+            <div class="flex items-center justify-between py-2 border-b border-zinc-800/80">
+                <div>
+                    <h4 class="text-sm font-medium text-zinc-200">Push Notifications</h4>
+                    <p class="text-xs text-zinc-500">Receive desktop alerts when new messages arrive</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked class="sr-only peer">
+                    <div class="w-10 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-between py-2 border-b border-zinc-800/80">
+                <div>
+                    <h4 class="text-sm font-medium text-zinc-200">Message Sounds</h4>
+                    <p class="text-xs text-zinc-500">Play subtle audio alert on incoming message</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked class="sr-only peer">
+                    <div class="w-10 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+
+            <div class="flex items-center justify-between py-2">
+                <div>
+                    <h4 class="text-sm font-medium text-zinc-200">Read Receipts</h4>
+                    <p class="text-xs text-zinc-500">Let conversation members know when you read their messages</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" checked class="sr-only peer">
+                    <div class="w-10 h-5 bg-zinc-800 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
+                </label>
+            </div>
+        </div>
+
+        <!-- 4. ACCOUNT SESSION -->
+        <div class="space-y-3 pt-2 border-t border-zinc-800">
+            <h3 class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Account Session</h3>
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 rounded-xl bg-zinc-900/50 border border-zinc-800/80">
+                <div>
+                    <h4 class="text-xs font-semibold text-zinc-200">Logged in as @{{ request.user.username }}</h4>
+                    <p class="text-[11px] text-zinc-500 mt-0.5">End your active session on this device.</p>
+                </div>
+                <form method="POST" action="{% url 'logout' %}">
+                    {% csrf_token %}
+                    <button
+                        type="submit"
+                        class="px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-300 text-xs font-semibold transition-colors flex items-center gap-1.5"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span>Log Out</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function handleAvatarSelected(input) {
+        if (input.files && input.files[0]) {
+            const file = input.files[0];
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const preview = document.getElementById('avatarPreview');
+                const placeholder = document.getElementById('avatarPlaceholder');
+                const saveBtn = document.getElementById('saveAvatarBtn');
+
+                if (preview) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                }
+                if (placeholder) {
+                    placeholder.classList.add('hidden');
+                }
+                if (saveBtn) {
+                    saveBtn.classList.remove('hidden');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function copySettingsId(code) {
+        if (!code) return;
+        window.copyTextToClipboard(code, null, false);
+        const btn = document.getElementById('settingsCopyBtn');
+        if (btn) {
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<span>Copied!</span><svg class="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>';
+            setTimeout(() => {
+                btn.innerHTML = orig;
+            }, 1500);
+        }
+    }
+</script>
+{% endblock %}

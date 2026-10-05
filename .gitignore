@@ -1,0 +1,35 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+env/
+venv/
+ENV/
+
+# Database
+*.sqlite3
+*.sqlite3-journal
+
+# Environment variables & secrets
+.env
+cert.pem
+key.pem
+
+# Binaries
+cloudflared.exe
+*.exe
+
+# Media files
+media/storage/*
+media/avatars/*
+!media/avatars/.gitkeep
+media/voice_notes/*
+!media/voice_notes/.gitkeep
+
+# IDE files
+.idea/
+.vscode/
+*.swp

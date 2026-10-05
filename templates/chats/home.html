@@ -1,0 +1,1065 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}
+    {% if active_conversation %}{{ active_conversation.name }} — LetsChat{% else %}Chats — LetsChat{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="fixed inset-0 flex h-full w-full overflow-hidden bg-[#09090b] text-zinc-100">
+
+    <!-- 1. LEFT MINIMAL ICON NAVIGATION -->
+    <aside class="hidden md:flex flex-col justify-between items-center w-16 py-4 bg-[#09090b] border-r border-zinc-800/80 shrink-0 z-20">
+        <div class="flex flex-col items-center gap-6 w-full">
+            <!-- Brand Logo -->
+            <a href="{% url 'home' %}" class="flex items-center justify-center w-10 h-10 rounded-xl bg-zinc-900 border border-zinc-800 text-white hover:border-zinc-700 transition-colors" title="LetsChat">
+                <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+            </a>
+
+            <!-- Navigation Links -->
+            <nav class="flex flex-col gap-2 w-full px-2">
+                <a href="{% url 'home' %}" title="Chats" class="flex items-center justify-center w-full aspect-square rounded-xl bg-zinc-800 text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"></path>
+                    </svg>
+                </a>
+
+                <button type="button" onclick="openNewChatModal()" title="New Chat" class="flex items-center justify-center w-full aspect-square rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                </button>
+
+                <a href="{% url 'settings' %}" title="Settings" class="flex items-center justify-center w-full aspect-square rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </a>
+            </nav>
+        </div>
+
+        <!-- User Profile & DP -->
+        <div class="flex flex-col items-center gap-2.5 w-full px-2">
+            <a
+                href="{% url 'settings' %}"
+                title="Settings & Profile"
+                class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 hover:border-blue-500 flex items-center justify-center font-semibold text-xs text-zinc-200 transition-colors group relative overflow-hidden"
+            >
+                {% if user_profile.avatar %}
+                    <img src="{{ user_profile.avatar.url }}" alt="{{ request.user.username }}" class="w-full h-full object-cover">
+                {% else %}
+                    {{ request.user.username|first|upper }}
+                {% endif %}
+                <span class="absolute left-full ml-3 px-2 py-1 bg-zinc-900 border border-zinc-700 rounded-md text-[10px] text-zinc-200 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50">
+                    Settings
+                </span>
+            </a>
+        </div>
+    </aside>
+
+
+    <!-- 2. CONVERSATION SIDEBAR -->
+    <section class="w-full md:w-80 lg:w-88 flex flex-col bg-[#0f0f12] border-r border-zinc-800/80 shrink-0 h-full {% if active_conversation %}hidden md:flex{% endif %}">
+        <!-- Sidebar Header -->
+        <div class="p-4 border-b border-zinc-800/80 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <!-- Mobile Avatar Trigger -->
+                <a href="{% url 'settings' %}" class="md:hidden w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700/60 overflow-hidden flex items-center justify-center text-xs font-semibold text-zinc-200 shrink-0" title="Settings & DP">
+                    {% if user_profile.avatar %}
+                        <img src="{{ user_profile.avatar.url }}" alt="{{ request.user.username }}" class="w-full h-full object-cover">
+                    {% else %}
+                        {{ request.user.username|first|upper }}
+                    {% endif %}
+                </a>
+
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-base font-semibold text-zinc-100">Messages</h2>
+                        <span class="px-2 py-0.5 text-xs font-mono text-zinc-400 bg-zinc-850 rounded-md border border-zinc-800">
+                            {{ conversations|length }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+                <!-- Mobile Settings Icon Link -->
+                <a
+                    href="{% url 'settings' %}"
+                    title="Settings & Profile"
+                    class="md:hidden p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-700 transition-colors"
+                >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </a>
+
+                <button type="button" onclick="openNewChatModal()" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-medium transition-colors">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    <span>New</span>
+                </button>
+            </div>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                {% if forloop.first and message.tags == 'error' %}
+                    <div class="mx-3 mt-3 p-2.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs">
+                        {{ message }}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        {% endif %}
+
+        <!-- Search Bar -->
+        <div class="p-3 border-b border-zinc-800/60">
+            <div class="relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                </div>
+                <input
+                    id="conversationSearch"
+                    type="text"
+                    placeholder="Search conversations..."
+                    class="w-full pl-9 pr-3 py-1.5 text-xs bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-200 placeholder-zinc-500 focus:border-zinc-600 focus:outline-none"
+                >
+            </div>
+        </div>
+
+        <!-- Conversation List -->
+        <div class="flex-1 min-h-0 overflow-y-auto p-2 pb-4 space-y-1 bg-[#0f0f12]" id="conversationList">
+            {% for conversation in conversations %}
+                <a
+                    href="?conversation={{ conversation.id }}"
+                    class="conversation-item flex items-center gap-3 p-2.5 rounded-xl transition-colors {% if active_conversation.id == conversation.id %}bg-zinc-850 border border-zinc-750 text-white{% else %}hover:bg-zinc-900 text-zinc-300 hover:text-white border border-transparent{% endif %}"
+                >
+                    <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center font-medium text-sm text-zinc-200 shrink-0 overflow-hidden">
+                        {% if conversation.other_participant and conversation.other_participant.profile.avatar %}
+                            <img src="{{ conversation.other_participant.profile.avatar.url }}" alt="{{ conversation.name }}" class="w-full h-full object-cover">
+                        {% else %}
+                            {{ conversation.name|first|upper }}
+                        {% endif %}
+                    </div>
+
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-medium text-sm truncate text-zinc-200">
+                                {{ conversation.name }}
+                            </h4>
+                            {% with last_msg=conversation.messages.last %}
+                                {% if last_msg %}
+                                    <span class="text-[11px] font-mono text-zinc-500">
+                                        {{ last_msg.created_at|date:"H:i" }}
+                                    </span>
+                                {% endif %}
+                            {% endwith %}
+                        </div>
+
+                        {% with last_message=conversation.messages.last %}
+                            <p class="text-xs text-zinc-400 truncate mt-0.5">
+                                {% if last_message %}
+                                    {% if last_message.sender == request.user %}
+                                        <span class="text-zinc-500">You: </span>
+                                    {% endif %}
+                                    {{ last_message.content }}
+                                {% else %}
+                                    <span class="text-zinc-600 italic">No messages yet</span>
+                                {% endif %}
+                            </p>
+                        {% endwith %}
+                    </div>
+                </a>
+            {% empty %}
+                <div class="h-64 flex flex-col items-center justify-center text-center p-6 space-y-3 text-zinc-500">
+                    <svg class="w-8 h-8 text-zinc-600 stroke-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    <div>
+                        <p class="text-sm font-medium text-zinc-300">No conversations</p>
+                        <p class="text-xs text-zinc-500 mt-0.5">Search a friend by Unique ID to chat.</p>
+                    </div>
+                    <button type="button" onclick="openNewChatModal()" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition-colors">
+                        Find by Unique ID
+                    </button>
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+
+    <!-- 3. MAIN CHAT PANEL -->
+    <main class="flex-1 min-h-0 flex flex-col bg-[#09090b] overflow-hidden relative {% if not active_conversation %}hidden md:flex{% endif %}">
+        {% if active_conversation %}
+            <!-- Chat Header -->
+            <header class="h-16 px-3.5 sm:px-4 md:px-6 border-b border-zinc-800/80 flex items-center justify-between bg-[#09090b] z-10 shrink-0">
+                <div onclick="toggleChatActionMenu(event)" class="flex items-center gap-2.5 sm:gap-3.5 min-w-0 cursor-pointer group/header select-none" title="View profile & options">
+                    <a href="{% url 'home' %}" onclick="event.stopPropagation()" class="md:hidden p-1.5 -ml-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-900 transition-colors shrink-0">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                        </svg>
+                    </a>
+
+                    <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 group-hover/header:border-zinc-500 flex items-center justify-center font-medium text-sm text-zinc-200 overflow-hidden shrink-0 transition-colors">
+                        {% if active_conversation.other_participant and active_conversation.other_participant.profile.avatar %}
+                            <img src="{{ active_conversation.other_participant.profile.avatar.url }}" alt="{{ active_conversation.name }}" class="w-full h-full object-cover">
+                        {% else %}
+                            {{ active_conversation.name|first|upper }}
+                        {% endif %}
+                    </div>
+
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-sm font-semibold text-zinc-100 group-hover/header:text-white truncate transition-colors">{{ active_conversation.name }}</h2>
+                        </div>
+                        <div id="chatHeaderStatus" class="text-[11px] flex items-center gap-1.5 truncate {% if active_other_participant and active_other_participant.profile.is_online %}text-emerald-400{% else %}text-zinc-500{% endif %}" data-other-user-id="{{ active_other_participant.id|default:'' }}">
+                            <span id="chatHeaderStatusDot" class="w-1.5 h-1.5 rounded-full shrink-0 {% if active_other_participant and active_other_participant.profile.is_online %}bg-emerald-500 animate-pulse{% else %}bg-zinc-600{% endif %}"></span>
+                            <span id="chatHeaderStatusText">
+                                {% if active_other_participant %}
+                                    {% if active_other_participant.profile.is_online %}
+                                        online
+                                    {% else %}
+                                        {{ active_other_participant.profile.last_seen_display }}
+                                    {% endif %}
+                                {% else %}
+                                    offline
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Header Action Buttons (Voice Call, Video Call & Options Menu) -->
+                <div class="flex items-center gap-1.5 shrink-0 ml-2">
+                    {% if not is_blocked and active_other_participant %}
+                        <!-- Voice Call Button -->
+                        <button
+                            type="button"
+                            onclick="startCall('audio')"
+                            class="p-2 rounded-xl text-zinc-400 hover:text-emerald-400 hover:bg-emerald-500/10 border border-zinc-800/80 hover:border-emerald-500/30 transition-colors flex items-center justify-center cursor-pointer active:scale-95"
+                            title="Start Voice Call"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                            </svg>
+                        </button>
+
+                        <!-- Video Call Button -->
+                        <button
+                            type="button"
+                            onclick="startCall('video')"
+                            class="p-2 rounded-xl text-zinc-400 hover:text-blue-400 hover:bg-blue-500/10 border border-zinc-800/80 hover:border-blue-500/30 transition-colors flex items-center justify-center cursor-pointer active:scale-95"
+                            title="Start Video Call"
+                        >
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                            </svg>
+                        </button>
+                    {% endif %}
+
+                    <!-- 3-Dots Conversation Options Menu -->
+                    <div class="relative" id="chatActionMenuContainer">
+                        <button
+                            type="button"
+                            onclick="toggleChatActionMenu(event)"
+                            id="chatMenuBtn"
+                            class="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-zinc-800/80 border border-zinc-800/80 hover:border-zinc-700 transition-colors flex items-center justify-center"
+                            title="Conversation Options"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path>
+                            </svg>
+                        </button>
+
+                    <!-- Dropdown Popover -->
+                    <div
+                        id="chatActionMenu"
+                        class="hidden absolute right-0 top-full mt-1.5 w-52 bg-[#141417] border border-zinc-800 rounded-2xl shadow-2xl py-1.5 z-50 text-xs text-zinc-200"
+                    >
+                        {% if active_other_participant %}
+                            <!-- Copy Unique ID -->
+                            <button
+                                type="button"
+                                onclick="copyUserUniqueId('{{ active_other_participant.profile.unique_number }}')"
+                                class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-800 flex items-center gap-2.5 transition-colors cursor-pointer"
+                            >
+                                <svg class="w-4 h-4 text-blue-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                </svg>
+                                <div>
+                                    <div class="font-medium text-zinc-200">Copy Unique ID</div>
+                                    <div class="text-[10px] font-mono text-zinc-400">#{{ active_other_participant.profile.unique_number }}</div>
+                                </div>
+                            </button>
+
+                            <div class="my-1 border-t border-zinc-800/80"></div>
+
+                            <!-- Block / Unblock Option -->
+                            <form method="POST" action="{% url 'toggle_block_user' active_other_participant.id %}" onsubmit="return confirm('{% if is_blocked_by_me %}Unblock this user? You will be able to message each other.{% else %}Block this user? You will not be able to message each other.{% endif %}');">
+                                {% csrf_token %}
+                                <input type="hidden" name="conversation_id" value="{{ active_conversation.id }}">
+                                <button
+                                    type="submit"
+                                    class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-800 flex items-center gap-2.5 transition-colors {% if is_blocked_by_me %}text-emerald-400 hover:text-emerald-300{% else %}text-amber-400 hover:text-amber-300{% endif %}"
+                                >
+                                    {% if is_blocked_by_me %}
+                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                        </svg>
+                                        <span>Unblock User</span>
+                                    {% else %}
+                                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                                        </svg>
+                                        <span>Block User</span>
+                                    {% endif %}
+                                </button>
+                            </form>
+
+                            <div class="my-1 border-t border-zinc-800/80"></div>
+                        {% endif %}
+
+                        <!-- Rename Conversation -->
+                        <button
+                            type="button"
+                            onclick="renameCurrentChat('{{ active_conversation.id }}', '{{ active_conversation.name|escapejs }}')"
+                            class="w-full text-left px-3.5 py-2.5 hover:bg-zinc-800 flex items-center gap-2.5 transition-colors text-zinc-200"
+                        >
+                            <svg class="w-4 h-4 text-zinc-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                            </svg>
+                            <span>Rename Chat</span>
+                        </button>
+
+                        <!-- Delete Entire Conversation -->
+                        <form method="POST" action="{% url 'delete_conversation' active_conversation.id %}" onsubmit="return confirm('Are you sure you want to delete this chat conversation? All messages will be permanently removed.');">
+                            {% csrf_token %}
+                            <button
+                                type="submit"
+                                class="w-full text-left px-3.5 py-2.5 hover:bg-rose-500/10 text-rose-400 hover:text-rose-300 flex items-center gap-2.5 transition-colors"
+                            >
+                                <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                                <span>Delete Chat</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Blocked State Banner -->
+            {% if is_blocked %}
+                <div class="px-6 py-2.5 bg-amber-500/10 border-b border-amber-500/20 text-amber-300 text-xs flex items-center justify-between shrink-0">
+                    <div class="flex items-center gap-2">
+                        <svg class="w-4 h-4 text-amber-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                        </svg>
+                        {% if is_blocked_by_me %}
+                            <span>You have blocked @{{ active_other_participant.username }}. Messages are disabled.</span>
+                        {% else %}
+                            <span>This conversation is blocked. Messages cannot be delivered.</span>
+                        {% endif %}
+                    </div>
+                    {% if is_blocked_by_me and active_other_participant %}
+                        <form method="POST" action="{% url 'toggle_block_user' active_other_participant.id %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="conversation_id" value="{{ active_conversation.id }}">
+                            <button type="submit" class="px-2.5 py-1 bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 rounded-lg text-xs font-medium transition-colors">
+                                Unblock
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            {% endif %}
+
+            <!-- Messages Stream -->
+            <section class="flex-1 min-h-0 overflow-y-auto p-3.5 sm:p-4 md:p-6 space-y-3 overscroll-contain" id="messages" style="-webkit-overflow-scrolling: touch;">
+                {% for message in messages %}
+                    {% if message.sender == request.user %}
+                        <!-- Outgoing Message (Sent by You) -->
+                        <div id="msg-{{ message.id }}" class="flex justify-end group/msg">
+                            <div class="relative group/bubble flex items-end gap-1.5 max-w-[85%] sm:max-w-[70%]">
+                                <!-- Action Buttons (Copy & Delete) -->
+                                <div class="flex items-center gap-0.5 opacity-0 group-hover/msg:opacity-100 transition-opacity mb-0.5 shrink-0">
+                                    {% if not message.audio_file %}
+                                        <button
+                                            type="button"
+                                            onclick="copyMessageContent(this)"
+                                            title="Copy Message"
+                                            class="p-1 text-zinc-500 hover:text-blue-400 rounded-lg hover:bg-zinc-800/80 active:scale-95 transition-all"
+                                        >
+                                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                            </svg>
+                                        </button>
+                                    {% endif %}
+                                    <button
+                                        type="button"
+                                        onclick="deleteMessage('{{ message.id }}')"
+                                        title="Delete Message"
+                                        class="p-1 text-zinc-500 hover:text-rose-400 rounded-lg hover:bg-zinc-800/80 active:scale-95 transition-all"
+                                    >
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <!-- Outgoing Bubble -->
+                                <div class="bg-blue-600 text-white rounded-2xl rounded-br-sm px-3.5 py-2 text-sm shadow-sm flex flex-col items-start w-fit min-w-[65px]">
+                                    {% if message.audio_file %}
+                                        <div class="custom-audio-player flex items-center gap-3 py-1 w-56 sm:w-64" data-audio-src="{{ message.audio_file.url }}" data-theme="outgoing">
+                                            <button type="button" class="play-btn w-9 h-9 rounded-full bg-white text-blue-600 flex items-center justify-center shrink-0 shadow-sm hover:scale-105 active:scale-95 transition-all">
+                                                <svg class="play-icon w-4 h-4 ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                <svg class="pause-icon w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                            </button>
+                                            <div class="flex-1 flex flex-col gap-1 min-w-0">
+                                                <div class="waveform-container flex items-center gap-[2.5px] h-6 cursor-pointer py-1 select-none"></div>
+                                                <div class="flex items-center justify-between text-[10px] font-mono text-blue-100/80 leading-none">
+                                                    <span class="curr-time">0:00</span>
+                                                    <span class="total-time">--:--</span>
+                                                </div>
+                                            </div>
+                                            <audio src="{{ message.audio_file.url }}" preload="metadata" class="hidden"></audio>
+                                        </div>
+                                    {% else %}
+                                        <div class="msg-text break-words leading-relaxed whitespace-pre-wrap text-left" style="overflow-wrap: anywhere; word-break: break-word;">{{ message.content }}</div>
+                                    {% endif %}
+                                    <div class="text-[10px] font-mono text-blue-200/80 self-end mt-0.5 -mb-0.5 -mr-0.5">{{ message.created_at|date:"H:i" }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Incoming Message (Received) -->
+                        <div id="msg-{{ message.id }}" class="flex justify-start group/msg">
+                            <div class="flex items-end gap-1.5 max-w-[85%] sm:max-w-[70%]">
+                                <!-- Incoming Avatar -->
+                                <div class="w-7 h-7 rounded-lg shrink-0 flex items-center justify-center text-[11px] font-semibold overflow-hidden bg-zinc-800 text-zinc-200 border border-zinc-700/60 mb-0.5">
+                                    {% if message.sender.profile.avatar %}
+                                        <img src="{{ message.sender.profile.avatar.url }}" alt="{{ message.sender.username }}" class="w-full h-full object-cover">
+                                    {% else %}
+                                        {{ message.sender.username|first|upper }}
+                                    {% endif %}
+                                </div>
+
+                                <!-- Incoming Bubble -->
+                                <div class="bg-[#18181b] border border-zinc-800 text-zinc-100 rounded-2xl rounded-bl-sm px-3.5 py-2 text-sm shadow-sm flex flex-col items-start w-fit min-w-[60px]">
+                                    {% if message.audio_file %}
+                                        <div class="custom-audio-player flex items-center gap-3 py-1 w-56 sm:w-64" data-audio-src="{{ message.audio_file.url }}" data-theme="incoming">
+                                            <button type="button" class="play-btn w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm hover:bg-blue-500 hover:scale-105 active:scale-95 transition-all">
+                                                <svg class="play-icon w-4 h-4 ml-0.5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                                <svg class="pause-icon w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                                            </button>
+                                            <div class="flex-1 flex flex-col gap-1 min-w-0">
+                                                <div class="waveform-container flex items-center gap-[2.5px] h-6 cursor-pointer py-1 select-none"></div>
+                                                <div class="flex items-center justify-between text-[10px] font-mono text-zinc-400 leading-none">
+                                                    <span class="curr-time">0:00</span>
+                                                    <span class="total-time">--:--</span>
+                                                </div>
+                                            </div>
+                                            <audio src="{{ message.audio_file.url }}" preload="metadata" class="hidden"></audio>
+                                        </div>
+                                    {% else %}
+                                        <div class="msg-text break-words leading-relaxed whitespace-pre-wrap text-left" style="overflow-wrap: anywhere; word-break: break-word;">{{ message.content }}</div>
+                                    {% endif %}
+                                    <div class="text-[10px] font-mono text-zinc-500 self-end mt-0.5 -mb-0.5 -mr-0.5 whitespace-nowrap">{{ message.created_at|date:"H:i" }}</div>
+                                </div>
+
+                                <!-- Action Buttons (Copy) -->
+                                {% if not message.audio_file %}
+                                    <button
+                                        type="button"
+                                        onclick="copyMessageContent(this)"
+                                        title="Copy Message"
+                                        class="opacity-0 group-hover/msg:opacity-100 transition-opacity p-1 text-zinc-500 hover:text-blue-400 rounded-lg hover:bg-zinc-800/80 mb-0.5 shrink-0 active:scale-95"
+                                    >
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                                        </svg>
+                                    </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endif %}
+                {% empty %}
+                    <div class="h-full flex flex-col items-center justify-center text-center p-8 space-y-2 text-zinc-500" id="emptyChat">
+                        <p class="text-sm font-medium text-zinc-300">Start of conversation</p>
+                        <p class="text-xs text-zinc-500 max-w-xs">Messages in this channel are transmitted in real-time.</p>
+                    </div>
+                {% endfor %}
+            </section>
+
+            <!-- Composer -->
+            <footer class="p-2.5 sm:p-3 md:p-4 border-t border-zinc-800/80 bg-[#09090b] shrink-0 z-20">
+                {% if is_blocked %}
+                    <div class="py-2.5 px-4 rounded-xl bg-zinc-900/60 border border-zinc-800 text-center text-xs text-zinc-500 font-medium">
+                        Messaging is disabled for this blocked conversation.
+                    </div>
+                {% else %}
+                    <form id="chatForm" onsubmit="event.preventDefault(); sendMessage();" class="flex items-center gap-2">
+                        <!-- Normal input mode -->
+                        <div id="textInputContainer" class="flex-1 flex items-center gap-2">
+                            <input
+                                type="text"
+                                id="messageInput"
+                                placeholder="Write a message..."
+                                autocomplete="off"
+                                class="flex-1 px-4 py-2.5 text-sm bg-zinc-900 border border-zinc-800 rounded-xl text-zinc-100 placeholder-zinc-500 focus:border-zinc-700 focus:outline-none"
+                            >
+
+                            <!-- Voice Record Button -->
+                            <button
+                                id="voiceRecordButton"
+                                type="button"
+                                onclick="toggleVoiceRecording()"
+                                title="Send voice note"
+                                class="p-2.5 rounded-xl bg-zinc-850 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-blue-400 transition-colors flex items-center justify-center shrink-0"
+                            >
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                                </svg>
+                            </button>
+
+                            <!-- Send Button -->
+                            <button
+                                id="sendButton"
+                                type="button"
+                                onclick="sendMessage()"
+                                class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition-colors flex items-center gap-1.5 shrink-0"
+                            >
+                                <span>Send</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Active Voice Recording Mode Container -->
+                        <div id="voiceRecordingContainer" class="hidden flex-1 flex items-center justify-between gap-3 bg-zinc-900/95 border border-rose-500/30 rounded-xl px-3.5 py-2">
+                            <div class="flex items-center gap-2 sm:gap-3">
+                                <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping shrink-0"></span>
+                                <span class="text-xs font-semibold text-rose-300">Recording</span>
+
+                                <!-- Animated Live Recording Sound Wave -->
+                                <div id="recordingWaveBars" class="flex items-center gap-[3px] h-5 px-1">
+                                    <span class="w-[3px] bg-rose-500 rounded-full animate-wave-1 h-2"></span>
+                                    <span class="w-[3px] bg-rose-400 rounded-full animate-wave-2 h-4"></span>
+                                    <span class="w-[3px] bg-rose-500 rounded-full animate-wave-3 h-5"></span>
+                                    <span class="w-[3px] bg-rose-400 rounded-full animate-wave-4 h-3"></span>
+                                    <span class="w-[3px] bg-rose-500 rounded-full animate-wave-5 h-5"></span>
+                                    <span class="w-[3px] bg-rose-400 rounded-full animate-wave-6 h-4"></span>
+                                    <span class="w-[3px] bg-rose-500 rounded-full animate-wave-7 h-2"></span>
+                                </div>
+
+                                <span id="recordingTimer" class="text-xs font-mono text-zinc-300 font-medium">0:00</span>
+                            </div>
+
+                            <div class="flex items-center gap-2">
+                                <button
+                                    type="button"
+                                    onclick="cancelVoiceRecording()"
+                                    class="p-1.5 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors"
+                                    title="Cancel Recording"
+                                >
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    onclick="stopAndSendVoiceRecording()"
+                                    class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer active:scale-95"
+                                    title="Send Voice Note"
+                                >
+                                    <span>Send Audio</span>
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                {% endif %}
+            </footer>
+
+        {% else %}
+            <!-- Empty Dashboard -->
+            <div class="h-full flex flex-col items-center justify-center text-center p-8 space-y-4 text-zinc-400">
+                <div class="w-12 h-12 rounded-2xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-zinc-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-zinc-200">No conversation selected</h2>
+                    <p class="text-xs text-zinc-500 mt-1 max-w-sm">Search a user's 6-digit Unique ID to start messaging. Your ID can be found in Settings.</p>
+                </div>
+                <button
+                    type="button"
+                    onclick="openNewChatModal()"
+                    class="px-4 py-2 rounded-xl bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors"
+                >
+                    Search by Unique ID
+                </button>
+            </div>
+        {% endif %}
+    </main>
+</div>
+
+
+<!-- 4. SEARCH & START CHAT STRICTLY BY UNIQUE NUMBER MODAL -->
+<div id="newChatModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" style="display: none;">
+    <div class="relative w-full max-w-md bg-[#141417] rounded-2xl border border-zinc-800 shadow-2xl overflow-hidden">
+        <!-- Modal Header -->
+        <div class="flex items-center justify-between p-4 border-b border-zinc-800">
+            <div>
+                <h3 class="text-sm font-semibold text-zinc-100">Find Member by Unique ID</h3>
+                <p class="text-xs text-zinc-500">Only identifiable via 6-digit Unique ID number</p>
+            </div>
+            <button type="button" onclick="closeNewChatModal()" class="p-1 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+
+        <div class="p-4 space-y-4">
+            <!-- Search / Instant Start Form -->
+            <form method="POST" action="{% url 'start_chat' %}" class="flex gap-2">
+                {% csrf_token %}
+                <div class="relative flex-1">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-500 font-mono text-xs">
+                        #
+                    </div>
+                    <input
+                        type="text"
+                        name="query"
+                        id="userSearchInput"
+                        placeholder="Enter 6-digit Unique ID (e.g. 849201)..."
+                        maxlength="10"
+                        autofocus
+                        class="w-full pl-7 pr-3 py-2 text-xs font-mono bg-zinc-900 border border-zinc-800 rounded-lg text-zinc-100 placeholder-zinc-500 focus:border-blue-500 focus:outline-none"
+                    >
+                </div>
+                <button
+                    type="submit"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-medium transition-colors shrink-0"
+                >
+                    Chat
+                </button>
+            </form>
+
+            <!-- Instructions & Live ID Results -->
+            <div id="userSearchResultsContainer">
+                <div class="space-y-1.5 max-h-60 overflow-y-auto" id="userSearchResults">
+                    <div class="py-6 text-center text-xs text-zinc-500">
+                        Enter a friend's 6-digit Unique ID to find and message them.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- 5. JAVASCRIPT CONTROLLERS -->
+<script>
+    function openNewChatModal() {
+        const modal = document.getElementById('newChatModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                const inp = document.getElementById('userSearchInput');
+                if (inp) inp.focus();
+            }, 50);
+        }
+    }
+
+    function closeNewChatModal() {
+        const modal = document.getElementById('newChatModal');
+        if (modal) modal.style.display = 'none';
+    }
+
+    function toggleChatActionMenu(event) {
+        event.stopPropagation();
+        const menu = document.getElementById('chatActionMenu');
+        if (menu) {
+            menu.classList.toggle('hidden');
+        }
+    }
+
+    function copyUserUniqueId(code) {
+        if (!code) return;
+        window.copyTextToClipboard(code, null, false);
+        const menu = document.getElementById('chatActionMenu');
+        if (menu) menu.classList.add('hidden');
+    }
+
+    function renameCurrentChat(convId, currentName) {
+        const menu = document.getElementById('chatActionMenu');
+        if (menu) menu.classList.add('hidden');
+        const newName = prompt('Enter new chat name:', currentName);
+        if (newName && newName.trim() && newName.trim() !== currentName) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/rename-conversation/${convId}/`;
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrfmiddlewaretoken';
+            csrf.value = '{{ csrf_token }}';
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = 'name';
+            input.value = newName.trim();
+            form.appendChild(csrf);
+            form.appendChild(input);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        const menu = document.getElementById('chatActionMenu');
+        const container = document.getElementById('chatActionMenuContainer');
+        if (menu && container && !container.contains(e.target)) {
+            menu.classList.add('hidden');
+        }
+    });
+
+
+
+    // Live Instant Search by Username, Unique ID, or Email
+    const userSearchInput = document.getElementById('userSearchInput');
+    const userSearchResults = document.getElementById('userSearchResults');
+
+    if (userSearchInput && userSearchResults) {
+        let debounceTimer;
+        userSearchInput.addEventListener('input', function () {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const q = userSearchInput.value.trim().replace(/^#/, '');
+                if (!q) {
+                    userSearchResults.innerHTML = `
+                        <div class="py-6 text-center text-xs text-zinc-500">
+                            Search for friends by Username, Name, or 6-digit Unique ID.
+                        </div>
+                    `;
+                    return;
+                }
+
+                fetch(`/search-users/?q=${encodeURIComponent(q)}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        if (!data.users || data.users.length === 0) {
+                            userSearchResults.innerHTML = `
+                                <div class="py-6 text-center text-xs text-zinc-500">
+                                    No member found matching "${q}".
+                                </div>
+                            `;
+                            return;
+                        }
+                        userSearchResults.innerHTML = data.users.map(u => `
+                            <form method="POST" action="{% url 'start_chat' %}" class="flex items-center justify-between p-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 transition-colors">
+                                {% csrf_token %}
+                                <input type="hidden" name="user_id" value="${u.id}">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center font-semibold text-xs text-zinc-200 overflow-hidden shrink-0">
+                                        ${u.avatar_url ? `<img src="${u.avatar_url}" class="w-full h-full object-cover">` : u.username.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-2">
+                                            <h4 class="text-sm font-medium text-zinc-200">${u.username}</h4>
+                                            <span onclick="event.stopPropagation(); event.preventDefault(); copyUserUniqueId('${u.unique_number}');" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 cursor-pointer active:scale-95 transition-all" title="Tap to copy #${u.unique_number}">
+                                                #${u.unique_number}
+                                            </span>
+                                        </div>
+                                        <p class="text-xs text-zinc-500 font-mono">${u.email ? u.email : 'Member'}</p>
+                                    </div>
+                                </div>
+                                <button type="submit" class="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium transition-colors">
+                                    Message
+                                </button>
+                            </form>
+                        `).join('');
+                    })
+                    .catch(err => {
+                        console.error('Search error:', err);
+                        userSearchResults.innerHTML = `
+                            <div class="py-6 text-center text-xs text-rose-400">
+                                Error searching members.
+                            </div>
+                        `;
+                    });
+            }, 180);
+        });
+    }
+
+    // Sidebar Conversation List Filter
+    const conversationSearchInput = document.getElementById('conversationSearch');
+    if (conversationSearchInput) {
+        conversationSearchInput.addEventListener('input', function () {
+            const query = conversationSearchInput.value.toLowerCase().trim();
+            const items = document.querySelectorAll('.conversation-item');
+            let visibleCount = 0;
+
+            items.forEach(function (item) {
+                const text = item.textContent.toLowerCase();
+                const matches = text.includes(query);
+                item.style.display = matches ? 'flex' : 'none';
+                if (matches) visibleCount++;
+            });
+        });
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeNewChatModal();
+            const menu = document.getElementById('chatActionMenu');
+            if (menu) menu.classList.add('hidden');
+        }
+    });
+</script>
+
+<!-- Incoming Call Dialog / Modal -->
+<div id="incomingCallModal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md">
+    <div class="bg-[#141417] border border-zinc-800 rounded-3xl p-6 sm:p-8 max-w-sm w-full text-center shadow-2xl flex flex-col items-center">
+        <!-- Ringing Avatar Pulse -->
+        <div class="relative mb-5">
+            <div class="absolute inset-0 rounded-full bg-blue-500/20 animate-ping"></div>
+            <div class="w-20 h-20 rounded-full bg-zinc-800 border-2 border-blue-500 flex items-center justify-center text-2xl font-semibold text-white overflow-hidden shadow-xl relative z-10">
+                <img id="incomingCallerAvatar" src="" class="w-full h-full object-cover hidden">
+                <span id="incomingCallerInitial">?</span>
+            </div>
+        </div>
+
+        <h3 id="incomingCallerName" class="text-lg font-bold text-white mb-1">Incoming Call...</h3>
+        <p id="incomingCallTypeLabel" class="text-xs text-zinc-400 flex items-center justify-center gap-1.5 mb-6">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Incoming Call</span>
+        </p>
+
+        <div class="flex items-center justify-center gap-6 w-full">
+            <!-- Decline Button -->
+            <button
+                type="button"
+                onclick="rejectIncomingCall()"
+                class="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition-all"
+            >
+                <div class="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-600/30 transition-colors">
+                    <svg class="w-6 h-6 rotate-[135deg]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                    </svg>
+                </div>
+                <span class="text-[11px] font-medium text-rose-300">Decline</span>
+            </button>
+
+            <!-- Accept Button -->
+            <button
+                type="button"
+                onclick="acceptIncomingCall()"
+                class="flex flex-col items-center gap-1.5 group cursor-pointer active:scale-95 transition-all"
+            >
+                <div class="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shadow-lg shadow-emerald-600/30 transition-colors">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                    </svg>
+                </div>
+                <span class="text-[11px] font-medium text-emerald-300">Accept</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Active Video / Voice Call Overlay -->
+<div id="activeCallOverlay" class="hidden fixed inset-0 z-[9998] flex flex-col bg-[#09090b] text-white">
+    <!-- Top Status Bar -->
+    <div class="absolute top-0 inset-x-0 p-4 sm:p-6 flex items-center justify-between z-20 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+        <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 overflow-hidden flex items-center justify-center font-semibold text-xs">
+                <span id="callTopAvatarInitial">?</span>
+            </div>
+            <div>
+                <h3 id="callTargetName" class="text-sm font-semibold text-white">Call</h3>
+                <p class="text-[11px] text-zinc-300 flex items-center gap-1.5 font-mono">
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="callDurationTimer">Connecting...</span>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Stage Area -->
+    <div class="relative flex-1 w-full h-full flex items-center justify-center overflow-hidden bg-zinc-950">
+        <!-- Remote Video Element & Dedicated Remote Audio Element -->
+        <video id="remoteVideo" autoplay playsinline webkit-playsinline class="w-full h-full object-cover"></video>
+        <audio id="remoteAudio" autoplay playsinline class="hidden"></audio>
+
+        <!-- Audio-Only Placeholder when Remote Video has no video track -->
+        <div id="audioCallAvatarPlaceholder" class="hidden absolute inset-0 flex flex-col items-center justify-center bg-[#0d0d11] p-6">
+            <div class="relative mb-6">
+                <div class="w-28 h-28 rounded-3xl bg-zinc-900 border border-zinc-700 flex items-center justify-center text-4xl font-bold text-zinc-200 shadow-2xl overflow-hidden">
+                    <span id="audioCallLargeInitial">?</span>
+                </div>
+            </div>
+            <h2 id="audioCallLargeName" class="text-xl font-bold text-white mb-2">In Call</h2>
+            <div class="flex items-center gap-1 h-6 px-4 py-1.5 rounded-full bg-zinc-900 border border-zinc-800">
+                <span class="w-1 bg-emerald-400 rounded-full animate-wave-1 h-3"></span>
+                <span class="w-1 bg-emerald-400 rounded-full animate-wave-2 h-5"></span>
+                <span class="w-1 bg-emerald-400 rounded-full animate-wave-3 h-6"></span>
+                <span class="w-1 bg-emerald-400 rounded-full animate-wave-4 h-4"></span>
+                <span class="w-1 bg-emerald-400 rounded-full animate-wave-5 h-6"></span>
+                <span class="w-1 bg-emerald-400 rounded-full animate-wave-6 h-5"></span>
+                <span class="w-1 bg-emerald-400 rounded-full animate-wave-7 h-3"></span>
+            </div>
+        </div>
+
+        <!-- Local Video Picture-in-Picture Preview -->
+        <div id="localVideoContainer" class="absolute bottom-24 right-4 sm:right-6 sm:bottom-28 w-28 sm:w-40 aspect-[3/4] sm:aspect-video rounded-2xl overflow-hidden border-2 border-zinc-700/80 bg-zinc-900 shadow-2xl z-20 transition-all">
+            <video id="localVideo" autoplay playsinline webkit-playsinline muted class="w-full h-full object-cover"></video>
+            <div id="localVideoMutedBadge" class="hidden absolute inset-0 bg-zinc-900/90 flex items-center justify-center text-zinc-400 text-xs font-medium">
+                <span>Camera Off</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Call Controls Bottom Bar -->
+    <div class="absolute bottom-6 inset-x-0 flex items-center justify-center gap-3 sm:gap-4 z-20 px-4">
+        <div class="flex items-center gap-2.5 sm:gap-4 px-4 py-3 rounded-2xl bg-zinc-900/90 border border-zinc-700/80 backdrop-blur-xl shadow-2xl">
+            <!-- Mic Mute / Unmute Button -->
+            <button
+                id="callMuteBtn"
+                type="button"
+                onclick="toggleCallMute()"
+                class="w-11 h-11 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                title="Mute / Unmute Microphone"
+            >
+                <svg id="micOnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"></path>
+                </svg>
+                <svg id="micOffIcon" class="w-5 h-5 text-rose-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path>
+                </svg>
+            </button>
+
+            <!-- Camera On / Off Button -->
+            <button
+                id="callVideoBtn"
+                type="button"
+                onclick="toggleCallCamera()"
+                class="w-11 h-11 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                title="Toggle Camera"
+            >
+                <svg id="cameraOnIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                <svg id="cameraOffIcon" class="w-5 h-5 text-rose-400 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path>
+                </svg>
+            </button>
+
+            <!-- Screen Share Button -->
+            <button
+                id="callScreenShareBtn"
+                type="button"
+                onclick="toggleCallScreenShare()"
+                class="w-11 h-11 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                title="Share Screen"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+            </button>
+
+            <!-- Flip / Switch Camera Button (Mobile) -->
+            <button
+                id="callFlipCameraBtn"
+                type="button"
+                onclick="flipCallCamera()"
+                class="w-11 h-11 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                title="Flip Camera"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                </svg>
+            </button>
+            <!-- End Call Button -->
+            <button
+                id="callHangUpBtn"
+                type="button"
+                onclick="endCall()"
+                class="w-12 h-11 rounded-xl bg-rose-600 hover:bg-rose-500 text-white flex items-center justify-center shadow-lg shadow-rose-600/30 transition-colors cursor-pointer"
+                title="Hang Up / End Call"
+            >
+                <svg class="w-5 h-5 rotate-[135deg]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                </svg>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Media Permission Guidance Modal (For Mobile / HTTP LAN) -->
+<div id="mediaPermissionModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+    <div class="bg-zinc-900 border border-zinc-700/80 rounded-2xl w-full max-w-md p-5 sm:p-6 shadow-2xl relative text-left">
+        <div class="flex items-start gap-3.5 mb-4">
+            <div class="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                </svg>
+            </div>
+            <div>
+                <h3 id="mediaPermissionTitle" class="text-base font-semibold text-white">Microphone / Camera Access</h3>
+                <p id="mediaPermissionSubtitle" class="text-xs text-zinc-400 mt-0.5">Mobile browser permission requirement</p>
+            </div>
+        </div>
+
+        <div id="mediaPermissionBody" class="text-xs text-zinc-300 space-y-3 leading-relaxed">
+            <p>Modern mobile browsers (Chrome & Safari) only prompt for microphone and camera permissions over <strong class="text-emerald-400">HTTPS</strong> or <strong class="text-blue-400">localhost</strong>.</p>
+
+            <div class="p-3 rounded-xl bg-zinc-800/80 border border-zinc-700/60 space-y-2">
+                <div class="font-medium text-white flex items-center gap-1.5">
+                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                    Testing on Mobile (Chrome on Android):
+                </div>
+                <ol class="list-decimal list-inside space-y-1 text-zinc-300 pl-1 text-[11px]">
+                    <li>Open a new tab in Chrome and type: <code class="bg-black/40 px-1 py-0.5 rounded text-blue-300 select-all font-mono">chrome://flags</code></li>
+                    <li>Search for: <code class="bg-black/40 px-1 py-0.5 rounded text-zinc-200">unsafely-treat-insecure-origin-as-secure</code></li>
+                    <li>Add your server address (<span id="insecureOriginHost" class="font-mono text-amber-300"></span>) to the box</li>
+                    <li>Set to <strong class="text-white">Enabled</strong> and tap <strong class="text-emerald-400">Relaunch</strong></li>
+                </ol>
+            </div>
+
+            <div class="p-2.5 rounded-xl bg-blue-950/30 border border-blue-800/40 text-[11px] text-blue-200">
+                💡 If already using HTTPS, tap the <strong>🔒 lock icon</strong> next to the URL in your browser bar and enable <strong>Microphone & Camera</strong> permissions.
+            </div>
+        </div>
+
+        <div class="mt-5 flex items-center justify-end gap-2">
+            <button
+                type="button"
+                onclick="closeMediaPermissionModal()"
+                class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold transition-all shadow-md active:scale-95"
+            >
+                Understood
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    window.CHAT_CONFIG = {
+        conversationId: "{{ active_conversation.id|default:'' }}",
+        currentUsername: "{{ request.user.username|escapejs }}",
+        currentUserId: "{{ request.user.id }}"
+    };
+</script>
+<script src="{% static 'js/app.js' %}"></script>
+{% endblock %}
