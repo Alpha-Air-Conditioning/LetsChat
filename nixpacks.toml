@@ -8,4 +8,4 @@ cmds = [
 ]
 
 [start]
-cmd = "daphne -b 0.0.0.0 -p $PORT config.asgi:application"
+cmd = "python -m daphne -b 0.0.0.0 -p $PORT config.asgi:application"
