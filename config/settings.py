@@ -40,6 +40,8 @@ CSRF_TRUSTED_ORIGINS = [
     'https://localhost:8443',
     'https://192.168.29.41:8443',
     'https://*.onrender.com',
+    'https://*.up.railway.app',
+    'https://*.railway.app',
     'https://*.trycloudflare.com',
     'https://*.cloudflarepreview.com',
     'https://*.loca.lt',
