@@ -9,7 +9,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.models import User
 from django.core.files.base import ContentFile
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -27,18 +27,21 @@ def home(request):
 
     conversations = list(
         request.user.conversations
+        .annotate(total_messages=Count('messages'))
         .prefetch_related('participants__profile', 'messages__sender__profile')
         .all()
     )
 
-    # Attach the other participant to each conversation for DP and display
+    # Attach the other participant and dynamic display name to each conversation
     for conv in conversations:
         other = [p for p in conv.participants.all() if p.id != request.user.id]
         conv.other_participant = other[0] if other else None
+        conv.display_name = conv.other_participant.username if conv.other_participant else conv.name
 
     conversation_id = request.GET.get('conversation')
     active_conversation = None
     active_other_participant = None
+    active_display_name = ''
     is_blocked_by_me = False
     is_blocked_by_other = False
     is_blocked = False
@@ -51,6 +54,7 @@ def home(request):
         )
         if active_conversation:
             active_other_participant = active_conversation.other_participant
+            active_display_name = active_conversation.display_name
             if active_other_participant:
                 is_blocked_by_me = BlockedUser.objects.filter(
                     blocker=request.user,
@@ -75,6 +79,7 @@ def home(request):
             'conversations': conversations,
             'active_conversation': active_conversation,
             'active_other_participant': active_other_participant,
+            'active_display_name': active_display_name,
             'is_blocked_by_me': is_blocked_by_me,
             'is_blocked_by_other': is_blocked_by_other,
             'is_blocked': is_blocked,
@@ -82,6 +87,7 @@ def home(request):
             'user_profile': request.user.profile,
         }
     )
+
 
 
 @login_required

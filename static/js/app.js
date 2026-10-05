@@ -85,7 +85,10 @@ function connectWebSocket() {
                     el.style.transition = 'opacity 0.2s ease, transform 0.2s ease';
                     el.style.opacity = '0';
                     el.style.transform = 'scale(0.95)';
-                    setTimeout(() => el.remove(), 200);
+                    setTimeout(() => {
+                        el.remove();
+                        updateHeaderMessageCount();
+                    }, 200);
                 }
                 return;
             }
@@ -375,6 +378,15 @@ function addMessage(data) {
     row.appendChild(container);
     messagesContainer.appendChild(row);
     scrollToBottom(true);
+    updateHeaderMessageCount();
+}
+
+function updateHeaderMessageCount() {
+    const counterEl = document.getElementById('chatHeaderMsgCount');
+    if (counterEl) {
+        const count = document.querySelectorAll('#messages > div[id^="msg-"]').length;
+        counterEl.textContent = `${count} msgs`;
+    }
 }
 
 // ----------------------------------------------------

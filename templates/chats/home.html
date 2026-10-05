@@ -143,24 +143,31 @@
                 >
                     <div class="w-10 h-10 rounded-xl bg-zinc-800 border border-zinc-700/60 flex items-center justify-center font-medium text-sm text-zinc-200 shrink-0 overflow-hidden">
                         {% if conversation.other_participant and conversation.other_participant.profile.avatar %}
-                            <img src="{{ conversation.other_participant.profile.avatar.url }}" alt="{{ conversation.name }}" class="w-full h-full object-cover">
+                            <img src="{{ conversation.other_participant.profile.avatar.url }}" alt="{{ conversation.display_name }}" class="w-full h-full object-cover">
                         {% else %}
-                            {{ conversation.name|first|upper }}
+                            {{ conversation.display_name|first|upper }}
                         {% endif %}
                     </div>
 
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center justify-between">
+                        <div class="flex items-center justify-between gap-1">
                             <h4 class="font-medium text-sm truncate text-zinc-200">
-                                {{ conversation.name }}
+                                {{ conversation.display_name }}
                             </h4>
-                            {% with last_msg=conversation.messages.last %}
-                                {% if last_msg %}
-                                    <span class="text-[11px] font-mono text-zinc-500">
-                                        {{ last_msg.created_at|date:"H:i" }}
+                            <div class="flex items-center gap-1.5 shrink-0">
+                                {% if conversation.total_messages > 0 %}
+                                    <span class="px-1.5 py-0.5 text-[10px] font-mono font-medium rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20" title="{{ conversation.total_messages }} messages">
+                                        {{ conversation.total_messages }}
                                     </span>
                                 {% endif %}
-                            {% endwith %}
+                                {% with last_msg=conversation.messages.last %}
+                                    {% if last_msg %}
+                                        <span class="text-[11px] font-mono text-zinc-500">
+                                            {{ last_msg.created_at|date:"H:i" }}
+                                        </span>
+                                    {% endif %}
+                                {% endwith %}
+                            </div>
                         </div>
 
                         {% with last_message=conversation.messages.last %}
@@ -208,30 +215,34 @@
                     </a>
 
                     <div class="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700/60 group-hover/header:border-zinc-500 flex items-center justify-center font-medium text-sm text-zinc-200 overflow-hidden shrink-0 transition-colors">
-                        {% if active_conversation.other_participant and active_conversation.other_participant.profile.avatar %}
-                            <img src="{{ active_conversation.other_participant.profile.avatar.url }}" alt="{{ active_conversation.name }}" class="w-full h-full object-cover">
+                        {% if active_other_participant and active_other_participant.profile.avatar %}
+                            <img src="{{ active_other_participant.profile.avatar.url }}" alt="{{ active_display_name }}" class="w-full h-full object-cover">
                         {% else %}
-                            {{ active_conversation.name|first|upper }}
+                            {{ active_display_name|first|upper }}
                         {% endif %}
                     </div>
 
                     <div class="min-w-0">
                         <div class="flex items-center gap-2">
-                            <h2 class="text-sm font-semibold text-zinc-100 group-hover/header:text-white truncate transition-colors">{{ active_conversation.name }}</h2>
+                            <h2 class="text-sm font-semibold text-zinc-100 group-hover/header:text-white truncate transition-colors">{{ active_display_name }}</h2>
                         </div>
-                        <div id="chatHeaderStatus" class="text-[11px] flex items-center gap-1.5 truncate {% if active_other_participant and active_other_participant.profile.is_online %}text-emerald-400{% else %}text-zinc-500{% endif %}" data-other-user-id="{{ active_other_participant.id|default:'' }}">
-                            <span id="chatHeaderStatusDot" class="w-1.5 h-1.5 rounded-full shrink-0 {% if active_other_participant and active_other_participant.profile.is_online %}bg-emerald-500 animate-pulse{% else %}bg-zinc-600{% endif %}"></span>
-                            <span id="chatHeaderStatusText">
-                                {% if active_other_participant %}
-                                    {% if active_other_participant.profile.is_online %}
-                                        online
+                        <div class="flex items-center gap-2 truncate">
+                            <div id="chatHeaderStatus" class="text-[11px] flex items-center gap-1.5 truncate {% if active_other_participant and active_other_participant.profile.is_online %}text-emerald-400{% else %}text-zinc-500{% endif %}" data-other-user-id="{{ active_other_participant.id|default:'' }}">
+                                <span id="chatHeaderStatusDot" class="w-1.5 h-1.5 rounded-full shrink-0 {% if active_other_participant and active_other_participant.profile.is_online %}bg-emerald-500 animate-pulse{% else %}bg-zinc-600{% endif %}"></span>
+                                <span id="chatHeaderStatusText">
+                                    {% if active_other_participant %}
+                                        {% if active_other_participant.profile.is_online %}
+                                            online
+                                        {% else %}
+                                            {{ active_other_participant.profile.last_seen_display }}
+                                        {% endif %}
                                     {% else %}
-                                        {{ active_other_participant.profile.last_seen_display }}
+                                        offline
                                     {% endif %}
-                                {% else %}
-                                    offline
-                                {% endif %}
-                            </span>
+                                </span>
+                            </div>
+                            <span class="text-zinc-600 text-[10px]">•</span>
+                            <span id="chatHeaderMsgCount" class="text-[11px] font-mono text-zinc-400">{{ messages|length }} msgs</span>
                         </div>
                     </div>
                 </div>
